@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Interests</title>
+  <link rel="stylesheet" href="2nd.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="rec3.png" type="image/png" />
+</head>
+<body>
+  <div class="container">
+    <h1>Choose <span class="highlight">5</span> things you’re really into</h1>
+
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search school event interests..." />
+      <ul id="suggestions-list" class="suggestions-list"></ul>
+    </div>
+
+    <h3 class="section-label">Selected Interests (<span class="counter">0/5</span>)</h3>
+    <div id="selected-container" class="pill-container selected"></div>
+
+    <p class="suggestion-label">Suggestions for you</p>
+    <div id="available-container" class="pill-container available">
+      <!-- Dynamic pills will be inserted here -->
+    </div>
+
+    <div class="footer">
+      <span class="counter">0/5 selected</span>
+      <button type="button" class="next-button" onclick="goToNextPage()" disabled>Next</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+    import { getDatabase } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhOFtWyDAR6Gip_JrZpRM9vWTpFdkwhyk",
+      authDomain: "reco-vibe2.firebaseapp.com",
+      projectId: "reco-vibe2",
+      storageBucket: "reco-vibe2.firebasestorage.app",
+      messagingSenderId: "877048494038",
+      appId: "1:877048494038:web:c325d8ec0ab46748a51677",
+      measurementId: "G-MXQ46E3WRD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+    const database = getDatabase(app);
+
+    // Make Firebase services globally available for 2nd.js
+    window.firebaseServices = { auth, firestore, database };
+    
+    // Define goToNextPage globally so onclick can call it
+    window.goToNextPage = async function() {
+      try {
+        const services = window.firebaseServices;
+        
+        if (!services || !services.auth || !services.database || !services.firestore) {
+          // Fallback if Firebase is not initialized
+          alert(`You selected: ${Array.from(window.selectedInterests || []).join(', ')}`);
+          window.location.href = "ai.html";
+          return;
+        }
+
+        const user = services.auth.currentUser;
+        if (!user) {
+          alert("You must be logged in to save your interests.");
+          return;
+        }
+
+        const interestsArray = Array.from(window.selectedInterests || []);
+
+        // Import Firebase functions we need
+        const { ref, get, set } = await import("https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js");
+        const { collection, query, where, getDocs, updateDoc, addDoc } = await import("https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js");
+
+        // Save to Realtime Database (merge with existing user data)
+        const dbRef = ref(services.database, "users/" + user.uid);
+        const snapshot = await get(dbRef);
+        const userData = snapshot.val() || {};
+        userData.interests = interestsArray;
+        await set(dbRef, userData);
+
+        // Also save to Firestore
+        const q = query(collection(services.firestore, "users"), where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          // Update existing document
+          const docRef = querySnapshot.docs[0].ref;
+          await updateDoc(docRef, { interests: interestsArray });
+        } else {
+          // Create new document
+          await addDoc(collection(services.firestore, "users"), {
+            userId: user.uid,
+            interests: interestsArray
+          });
+        }
+
+        alert(`Your interests have been saved: ${interestsArray.join(', ')}`);
+        window.location.href = "ai.html";
+      } catch (error) {
+        console.error("Error in goToNextPage:", error);
+        alert("Failed to save interests: " + error.message);
+      }
+    };
+  </script>
+  <script src="2nd.js"></script>
+</body>
+</html>

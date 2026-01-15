@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - RecoVibe</title>
+    <link rel="stylesheet" href="createacc.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+    <img src="logo-light-transparent.png" alt="RecoVibe logo" class="logo">
+
+    <div class="container">
+        <div class="form-container">
+            <h2>Create Your Account</h2>
+            <form id="create-account-form">
+                <input type="text" id="studentId" placeholder="Student ID (e.g., 2022-00285-BN-0)" pattern="^\d{4}-\d{5}-[A-Z]{2}-\d$" required />
+                
+                <input type="text" id="lastName" placeholder="Last Name" required />
+                
+                <input type="text" id="firstName" placeholder="First Name" required />
+                
+                <input type="text" id="middleName" placeholder="Middle Name" required />
+
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                    <input type="checkbox" id="noMiddleNameCheckbox" style="width: 18px; height: 18px; cursor: pointer;" />
+                    <label for="noMiddleNameCheckbox" style="cursor: pointer; font-size: 14px; color: #666; margin: 0;">If you don't have a middle name</label>
+                </div>
+
+                <input type="email" id="email" placeholder="Email" required />
+
+                <div class="password-wrapper">
+                    <input type="password" id="password" placeholder="Password" required />
+                    <i id="togglePassword1" class="fas fa-eye toggle-password"></i>
+                </div>
+
+                <div class="password-wrapper">
+                    <input type="password" id="confirmPassword" placeholder="Confirm Password" required />
+                    <i id="togglePassword2" class="fas fa-eye toggle-password"></i>
+                </div>
+
+                <button type="submit" id="submit">Register</button>
+            </form>
+            <button id="backButton">Back</button>
+        </div>
+    </div>
+
+    <!-- Firebase Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+        import { getDatabase, ref as dbRef, set as dbSet } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+
+        const firebaseConfig = {
+  apiKey: "AIzaSyAhOFtWyDAR6Gip_JrZpRM9vWTpFdkwhyk",
+  authDomain: "reco-vibe2.firebaseapp.com",
+  projectId: "reco-vibe2",
+  storageBucket: "reco-vibe2.firebasestorage.app",
+  messagingSenderId: "877048494038",
+  appId: "1:877048494038:web:c325d8ec0ab46748a51677",
+  measurementId: "G-MXQ46E3WRD"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const firestore = getFirestore(app);
+        const database = getDatabase(app);
+
+        // Handle Middle Name checkbox
+        const noMiddleNameCheckbox = document.getElementById('noMiddleNameCheckbox');
+        const middleNameInput = document.getElementById('middleName');
+
+        noMiddleNameCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                middleNameInput.required = false;
+                middleNameInput.style.opacity = '0.5';
+                middleNameInput.style.pointerEvents = 'none';
+                middleNameInput.value = '';
+            } else {
+                middleNameInput.required = true;
+                middleNameInput.style.opacity = '1';
+                middleNameInput.style.pointerEvents = 'auto';
+            }
+        });
+
+        // Password toggle functionality
+        document.getElementById('togglePassword1').addEventListener('click', function () {
+            const passwordField = document.getElementById('password');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                this.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                passwordField.type = 'password';
+                this.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+
+        document.getElementById('togglePassword2').addEventListener('click', function () {
+            const confirmPasswordField = document.getElementById('confirmPassword');
+            if (confirmPasswordField.type === 'password') {
+                confirmPasswordField.type = 'text';
+                this.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                confirmPasswordField.type = 'password';
+                this.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+
+        // Create Account Form Submission
+        document.getElementById("create-account-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const firstName = document.getElementById("firstName").value.trim();
+            const lastName = document.getElementById("lastName").value.trim();
+            const noMiddleName = document.getElementById('noMiddleNameCheckbox').checked;
+            const middleName = !noMiddleName ? document.getElementById("middleName").value.trim() : "";
+            const studentId = document.getElementById("studentId").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+
+            // Validate Student ID format
+            const studentIdPattern = /^\d{4}-\d{5}-[A-Z]{2}-\d$/;
+            if (!studentIdPattern.test(studentId)) {
+                alert("Student ID must follow the format: YYYY-NNNNN-XX-N (e.g., 2022-00285-BN-0)");
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert("Passwords do not match.");
+                return;
+            }
+
+            try {
+                // Create Firebase Authentication user
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Combine name fields
+                const fullName = middleName ? `${firstName} ${middleName} ${lastName}` : `${firstName} ${lastName}`;
+
+                // Store in Firestore
+                await setDoc(doc(firestore, "users", user.uid), {
+                    firstName,
+                    lastName,
+                    middleName: middleName || null,
+                    fullName,
+                    studentId,
+                    email,
+                    uid: user.uid,
+                    createdAt: new Date()
+                });
+
+                // Store in Realtime Database
+                await dbSet(dbRef(database, "users/" + user.uid), {
+                    firstName,
+                    lastName,
+                    middleName: middleName || null,
+                    fullName,
+                    studentId,
+                    email,
+                    createdAt: new Date().toISOString()
+                });
+
+                alert("Account created successfully! Redirecting to login...");
+                window.location.href = "index.html";
+
+            } catch (error) {
+                console.error(error);
+
+                if (error.code === 'auth/email-already-in-use') {
+                    alert("The email address is already in use.");
+                } else if (error.code === 'auth/weak-password') {
+                    alert("The password is too weak. Please use at least 6 characters.");
+                } else if (error.code === 'auth/invalid-email') {
+                    alert("The email address is not valid.");
+                } else {
+                    alert("Error: " + error.message);
+                }
+            }
+        });
+
+        document.getElementById("backButton").addEventListener("click", () => {
+            window.location.href = "index.html";
+        });
+    </script>
+
+</body>
+</html>

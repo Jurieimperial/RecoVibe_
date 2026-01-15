@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Descriptions</title>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <h1>All Descriptions</h1>
+  <ul id="description-list"></ul>
+
+  <script>
+    // Your Firebase config
+   const firebaseConfig = {
+  apiKey: "AIzaSyAhOFtWyDAR6Gip_JrZpRM9vWTpFdkwhyk",
+  authDomain: "reco-vibe2.firebaseapp.com",
+  projectId: "reco-vibe2",
+  storageBucket: "reco-vibe2.firebasestorage.app",
+  messagingSenderId: "877048494038",
+  appId: "1:877048494038:web:c325d8ec0ab46748a51677",
+  measurementId: "G-MXQ46E3WRD"
+};
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Fetch all descriptions from 'descriptions' collection
+    db.collection("descriptions").get().then((querySnapshot) => {
+      const list = document.getElementById("description-list");
+      querySnapshot.forEach((doc) => {
+        const li = document.createElement("li");
+        li.textContent = doc.data().description; // Only the description field
+        list.appendChild(li);
+      });
+    }).catch((error) => {
+      console.error("Error fetching descriptions: ", error);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - RecoVibe</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="dash.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.0/crypto-js.min.js"></script>
+  
+</head>
+<body>
+  <div class="header-bar">
+    <span class="header-title">
+      <h3>🎓 Admin Dashboard</h3>
+      <p></p>
+    </span>
+    <div class="header-icons">
+      <div class="notification" id="notificationBtn">
+        <div class="notification-icon" id="notifIcon" tabindex="0">
+          <svg xmlns="http://www.w3.org/2000/svg" height="26" width="26" viewBox="0 0 24 24" fill="none" stroke="#2d6cdf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span class="notification-badge" id="notifCount" style="display: none;">0</span>
+        </div>
+        <div class="dropdown" id="notifDropdown">
+          <div class="notif-dropdown-content" id="notifDropdownContent">
+            <p>No new notifications</p>
+          </div>
+        </div>
+      </div>
+      <div class="profile-menu">
+        <div class="profile-icon" id="profileIcon" tabindex="0">
+          <svg xmlns="http://www.w3.org/2000/svg" height="24" width="24" fill="#333">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+        </div>
+        <ul class="dropdown" id="profileDropdown">
+          <li><a href="personalisation.html">View Profile</a></li>
+          <li><a href="index.html" onclick="logout()">Log Out</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="welcome-text">
+    </div>
+
+    <div class="right-content">
+      <button class="create-event-btn" onclick="goToCreateEvent()">➕ Create Event</button>
+
+      <div class="card" id="eventsSection">
+        <h2>📅 Created Events</h2>
+        <input class="filter-input" type="text" id="eventSearch" placeholder="🔍 Search events..." />
+        <div style="margin: 10px 0;">
+          <label for="eventDateFilter">Event Date</label>
+          <input type="date" id="eventDateFilter" class="filter-input" />
+          
+          <label for="categoryFilter">Event Category</label>
+          <select id="categoryFilter" class="filter-input">
+            <option value="">All Categories</option>
+            <option value="Esports">Esports</option>
+            <option value="Org">Org</option>
+            <option value="Social">Social</option>
+            <option value="Sports">Sports</option>
+            <option value="Academic">Academic</option>
+          </select>
+        </div>
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Event Name</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Location</th>
+              <th>Academic Head</th>
+              <th>Student Affairs</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="eventsList">
+            <tr><td colspan="9" style="text-align: center;">Loading events...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" id="usersSection">
+        <h2>👥 Registered Users</h2>
+        <input class="filter-input" type="text" id="userSearch" placeholder="🔍 Search users..." />
+        <div style="margin-bottom: 10px;">
+          <button class="action-btn" onclick="openRegisteredUsersModal()">View All Registered Users</button>
+        </div>
+        <div id="usersList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- RSVP Modal -->
+  <div id="rsvpModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalEventName">Event RSVPs</h2>
+        <span class="close" onclick="closeRSVPModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <table class="rsvp-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>RSVP Date</th>
+            </tr>
+          </thead>
+          <tbody id="rsvpsList">
+            <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeRSVPModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registered Users Modal -->
+  <div id="registeredUsersModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalUsersTitle">Registered Users</h2>
+        <span class="close" onclick="closeRegisteredUsersModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <table class="rsvp-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Registration Date</th>
+            </tr>
+          </thead>
+          <tbody id="registeredUsersList">
+            <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeRegisteredUsersModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // Encryption key for user data - should be stored securely in production
+    const ENCRYPTION_KEY = "RecoVibe_SecureKey_2026";
+
+    // Encrypt function using CryptoJS
+    function encryptData(data) {
+      try {
+        if (typeof CryptoJS === 'undefined') {
+          console.warn('CryptoJS not available, using base64 fallback');
+          return btoa(String(data));
+        }
+        return CryptoJS.AES.encrypt(String(data), ENCRYPTION_KEY).toString();
+      } catch (error) {
+        console.error("Encryption error:", error);
+        return String(data);
+      }
+    }
+
+    // Decrypt function with fallback
+    function decryptData(encryptedData) {
+      try {
+        if (typeof CryptoJS === 'undefined') {
+          return atob(encryptedData);
+        }
+        const decrypted = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY);
+        return decrypted.toString(CryptoJS.enc.Utf8);
+      } catch (error) {
+        console.error("Decryption error:", error);
+        return "[Encrypted]";
+      }
+    }
+
+    // Function to mask encrypted email/name for display
+    function maskSensitiveData(data, type = 'email') {
+      if (!data) return 'Unknown';
+      if (type === 'email' && data.includes('@')) {
+        const [name, domain] = data.split('@');
+        const masked = name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2)) + '@' + domain;
+        return masked;
+      }
+      if (type === 'name' && data.length > 2) {
+        return data.charAt(0) + '*'.repeat(data.length - 2) + data.charAt(data.length - 1);
+      }
+      return data;
+    }
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyAhOFtWyDAR6Gip_JrZpRM9vWTpFdkwhyk",
+  authDomain: "reco-vibe2.firebaseapp.com",
+  projectId: "reco-vibe2",
+  storageBucket: "reco-vibe2.firebasestorage.app",
+  messagingSenderId: "877048494038",
+  appId: "1:877048494038:web:c325d8ec0ab46748a51677",
+  measurementId: "G-MXQ46E3WRD"
+};
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const rtdb = firebase.database();
+
+  // Normalize status values to a consistent class/text for display
+  function formatStatus(status) {
+    // Accept several possible stored values: boolean, 'approve', 'approved', 'rejected', etc.
+    if (status === true || String(status).toLowerCase() === 'approve' || String(status).toLowerCase() === 'approved') {
+      return { cls: 'approved', text: 'Approved' };
+    }
+    if (status === false || String(status).toLowerCase() === 'reject' || String(status).toLowerCase() === 'rejected') {
+      return { cls: 'rejected', text: 'Rejected' };
+    }
+    // default to pending/unknown
+    const s = status ? String(status) : 'pending';
+    const display = s.charAt(0).toUpperCase() + s.slice(1);
+    return { cls: s.toLowerCase(), text: display };
+  }
+
+    async function fetchFirestoreEvents(filter = {}) {
+        const eventsList = document.getElementById('eventsList');
+        eventsList.innerHTML = '';
+        try {
+            let queryRef = db.collection("events");
+            if (filter.category) {
+                queryRef = queryRef.where("category", "==", filter.category);
+            }
+            if (filter.date) {
+                queryRef = queryRef.where("date", "==", filter.date);
+            }
+            const querySnapshot = await queryRef.get();
+            let found = false;
+            querySnapshot.forEach((doc) => {
+                found = true;
+                const event = doc.data();
+        const row = document.createElement('tr');
+                // support both boolean fields used in other dashboards and string fields
+                const ahRaw = (event.academicApproved !== undefined) ? event.academicApproved : event.academicHeadStatus;
+                const saRaw = (event.affairsApproved !== undefined) ? event.affairsApproved : event.studentAffairsStatus;
+                const ah = formatStatus(ahRaw);
+                const sa = formatStatus(saRaw);
+        row.innerHTML = `
+          <td>${event.name || ''}</td>
+          <td>${event.description || ''}</td>
+          <td><span class="category-badge">${event.category || ''}</span></td>
+          <td>${event.date || ''}</td>
+          <td>${event.time || ''}</td>
+          <td>${event.location || ''}</td>
+          <td><span class="status ${ah.cls}">${ah.text}</span></td>
+          <td><span class="status ${sa.cls}">${sa.text}</span></td>
+          <td><button class="action-btn" onclick="showRSVPs('${doc.id}')">View RSVPs</button></td>
+        `;
+                eventsList.appendChild(row);
+            });
+            if (!found) {
+                eventsList.innerHTML = '<tr><td colspan="9" style="text-align: center;">No events found.</td></tr>';
+            }
+        } catch (error) {
+            eventsList.innerHTML = `<tr><td colspan="9" style="text-align: center;">Error loading events: ${error.message}</td></tr>`;
+        }
+    }
+    fetchFirestoreEvents();
+
+    document.getElementById('eventSearch').addEventListener('input', async function() {
+        const search = this.value.toLowerCase();
+        const eventsList = document.getElementById('eventsList');
+        const querySnapshot = await db.collection("events").get();
+        eventsList.innerHTML = '';
+        let found = false;
+        querySnapshot.forEach((doc) => {
+            const event = doc.data();
+            if (
+                (event.name && event.name.toLowerCase().includes(search)) ||
+                (event.description && event.description.toLowerCase().includes(search))
+            ) {
+                found = true;
+        const row = document.createElement('tr');
+                // support both boolean fields used in other dashboards and string fields
+                const ahRaw = (event.academicApproved !== undefined) ? event.academicApproved : event.academicHeadStatus;
+                const saRaw = (event.affairsApproved !== undefined) ? event.affairsApproved : event.studentAffairsStatus;
+                const ah = formatStatus(ahRaw);
+                const sa = formatStatus(saRaw);
+        row.innerHTML = `
+          <td>${event.name || ''}</td>
+          <td>${event.description || ''}</td>
+          <td><span class="category-badge">${event.category || ''}</span></td>
+          <td>${event.date || ''}</td>
+          <td>${event.time || ''}</td>
+          <td>${event.location || ''}</td>
+          <td><span class="status ${ah.cls}">${ah.text}</span></td>
+          <td><span class="status ${sa.cls}">${sa.text}</span></td>
+          <td><button class="action-btn" onclick="showRSVPs('${doc.id}')">View RSVPs</button></td>
+        `;
+                eventsList.appendChild(row);
+            }
+        });
+        if (!found) {
+            eventsList.innerHTML = '<tr><td colspan="9" style="text-align: center;">No events found.</td></tr>';
+        }
+    });
+
+    document.getElementById('categoryFilter').addEventListener('change', function() {
+        fetchFirestoreEvents({
+            category: this.value || undefined,
+            date: document.getElementById('eventDateFilter').value || undefined
+        });
+    });
+
+    document.getElementById('eventDateFilter').addEventListener('change', function() {
+        fetchFirestoreEvents({
+            category: document.getElementById('categoryFilter').value || undefined,
+            date: this.value || undefined
+        });
+    });
+
+    function openRegisteredUserFrame() {
+        window.open('RegisteredUser.html', 'RegisteredUserFrame', 'width=900,height=600');
+    }
+
+    // New function to open modal instead of window
+    window.openRegisteredUsersModal = async function() {
+      const registeredUsersModal = document.getElementById('registeredUsersModal');
+      const registeredUsersList = document.getElementById('registeredUsersList');
+      
+      registeredUsersList.innerHTML = '<tr><td colspan="3" style="text-align: center;">Loading users...</td></tr>';
+      registeredUsersModal.style.display = 'block';
+
+      try {
+        const querySnapshot = await db.collection("users").get();
+        let users = [];
+        
+        querySnapshot.forEach((doc) => {
+          users.push(doc.data());
+        });
+
+        if (users.length === 0) {
+          registeredUsersList.innerHTML = '<tr><td colspan="3" style="text-align: center;">No registered users found.</td></tr>';
+          return;
+        }
+
+        registeredUsersList.innerHTML = '';
+        users.forEach((user) => {
+          const row = document.createElement('tr');
+          const registrationDate = user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A';
+          
+          // Encrypt sensitive user data
+          const encryptedName = encryptData(user.name || 'Unknown');
+          const encryptedEmail = encryptData(user.email || 'Unknown');
+          
+          // Display encrypted email (shortened for readability)
+          const displayName = user.name || 'Unknown';
+          const displayEncryptedEmail = encryptedEmail.substring(0, 30) + '...';
+          
+          row.innerHTML = `
+            <td>${displayName}</td>
+            <td title="Full encrypted: ${encryptedEmail}">${displayEncryptedEmail}</td>
+            <td>${registrationDate}</td>
+          `;
+          
+          // Store full encrypted data in data attributes
+          row.setAttribute('data-encrypted-name', encryptedName);
+          row.setAttribute('data-encrypted-email', encryptedEmail);
+          
+          registeredUsersList.appendChild(row);
+        });
+      } catch (error) {
+        registeredUsersList.innerHTML = `<tr><td colspan="3" style="text-align: center;">Error loading users: ${error.message}</td></tr>`;
+        console.error("Error fetching users:", error);
+      }
+    };
+
+    function logout() {
+      if (firebase.auth) {
+        firebase.auth().signOut().then(function() {
+          window.location.href = 'admin123.html';
+        }).catch(function(error) {
+          alert('Logout failed: ' + error.message);
+        });
+      } else {
+        window.location.href = 'firstframe.html';
+      }
+    }
+
+    function goToCreateEvent() {
+      window.location.href = "createevent.html";
+    }
+
+    document.getElementById('notificationBtn').onclick = function(e) {
+      e.stopPropagation();
+      const notifDropdown = document.getElementById('notifDropdown');
+      notifDropdown.classList.toggle('show');
+      document.getElementById('profileDropdown').classList.remove('show');
+    };
+
+    document.getElementById('profileIcon').onclick = function(e) {
+      e.stopPropagation();
+      const dropdown = document.getElementById('profileDropdown');
+      dropdown.classList.toggle('show');
+      document.getElementById('notifDropdown').classList.remove('show');
+    };
+
+    document.body.onclick = function() {
+      document.getElementById('notifDropdown').classList.remove('show');
+      document.getElementById('profileDropdown').classList.remove('show');
+    };
+
+    async function fetchEventRSVPs(eventId) {
+      const rsvpsList = [];
+      try {
+        const rsvpsSnapshot = await db.collection("events").doc(eventId).collection("rsvps").get();
+        rsvpsSnapshot.forEach(doc => {
+          rsvpsList.push(doc.data());
+        });
+        return rsvpsList;
+      } catch (error) {
+        console.error("Error fetching RSVPs:", error);
+        return [];
+      }
+    }
+
+    window.showRSVPs = async function(eventId) {
+      const rsvpModal = document.getElementById('rsvpModal');
+      const rsvpsList = document.getElementById('rsvpsList');
+      const modalEventName = document.getElementById('modalEventName');
+      
+      // Get event name
+      try {
+        const eventDoc = await db.collection("events").doc(eventId).get();
+        if (eventDoc.exists) {
+          modalEventName.textContent = `RSVPs for ${eventDoc.data().name}`;
+        }
+      } catch (error) {
+        console.error("Error fetching event:", error);
+      }
+
+      rsvpsList.innerHTML = '<tr><td colspan="3" style="text-align: center;">Loading RSVPs...</td></tr>';
+      rsvpModal.style.display = 'block';
+
+      const rsvps = await fetchEventRSVPs(eventId);
+      
+      if (rsvps.length === 0) {
+        rsvpsList.innerHTML = '<tr><td colspan="3" style="text-align: center;">No one has joined this event yet.</td></tr>';
+        return;
+      }
+
+      rsvpsList.innerHTML = '';
+      rsvps.forEach((rsvp, index) => {
+        const row = document.createElement('tr');
+        const rsvpDate = rsvp.rsvpDate ? new Date(rsvp.rsvpDate.toDate()).toLocaleDateString() : 'N/A';
+        
+        const displayName = rsvp.name || 'Unknown';
+        const displayEmail = rsvp.email || 'Unknown';
+        
+        row.innerHTML = `
+          <td>${displayName}</td>
+          <td>${displayEmail}</td>
+          <td>${rsvpDate}</td>
+        `;
+        
+        rsvpsList.appendChild(row);
+      });
+    };
+
+    function closeRSVPModal() {
+      const rsvpModal = document.getElementById('rsvpModal');
+      rsvpModal.style.display = 'none';
+    }
+
+    function closeRegisteredUsersModal() {
+      const registeredUsersModal = document.getElementById('registeredUsersModal');
+      registeredUsersModal.style.display = 'none';
+    }
+
+    // Update window.onclick to handle both modals
+    window.onclick = function(event) {
+      const rsvpModal = document.getElementById('rsvpModal');
+      const registeredUsersModal = document.getElementById('registeredUsersModal');
+      
+      if (event.target === rsvpModal) {
+        rsvpModal.style.display = 'none';
+      }
+      if (event.target === registeredUsersModal) {
+        registeredUsersModal.style.display = 'none';
+      }
+    };
+
+    async function updateNotifications() {
+      const notifCount = document.getElementById('notifCount');
+      const notifDropdownContent = document.getElementById('notifDropdownContent');
+      notifDropdownContent.innerHTML = '<p>Loading...</p>';
+      notifCount.style.display = 'none';
+
+      let user = firebase.auth().currentUser;
+      if (!user) {
+        firebase.auth().onAuthStateChanged(function(u) {
+          if (u) updateNotifications();
+        });
+        notifDropdownContent.innerHTML = '<p>Please log in to see notifications.</p>';
+        return;
+      }
+      const adminEmail = user.email;
+
+      try {
+        const querySnapshot = await db.collection("events").where("createdBy", "==", adminEmail).get();
+        let notifications = [];
+        querySnapshot.forEach((doc) => {
+          const event = doc.data();
+          if (
+            event.academicHeadStatus === "approved" ||
+            event.academicHeadStatus === "rejected" ||
+            event.studentAffairsStatus === "approved" ||
+            event.studentAffairsStatus === "rejected"
+          ) {
+            let statusMsg = "";
+            if (event.academicHeadStatus === "approved" || event.academicHeadStatus === "rejected") {
+              statusMsg += `Academic Head: <b>${event.academicHeadStatus}</b><br>`;
+            }
+            if (event.studentAffairsStatus === "approved" || event.studentAffairsStatus === "rejected") {
+              statusMsg += `Student Affairs: <b>${event.studentAffairsStatus}</b><br>`;
+            }
+            notifications.push(
+              `<div style="margin-bottom:8px;">
+                <b>${event.name || "Event"}</b><br>
+                ${statusMsg}
+                <small>${event.date || ""}</small>
+              </div>`
+            );
+          }
+        });
+
+        if (notifications.length > 0) {
+          notifCount.textContent = notifications.length;
+          notifCount.style.display = 'inline-block';
+          notifDropdownContent.innerHTML = notifications.join('');
+        } else {
+          notifDropdownContent.innerHTML = '<p>No new notifications</p>';
+          notifCount.style.display = 'none';
+        }
+      } catch (error) {
+        notifDropdownContent.innerHTML = `<p>Error loading notifications: ${error.message}</p>`;
+      }
+    }
+
+    firebase.auth().onAuthStateChanged(function(user) {
+      if (user) updateNotifications();
+    });
+
+    setInterval(updateNotifications, 30000);
+  </script>
+</body>
+</html>

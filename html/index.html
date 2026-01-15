@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RecoVibe Login</title>
+  <link rel="stylesheet" href="login.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="icon" href="logo-light-transparent.png" type="image/png" />
+</head>
+<body>
+
+  <!-- Main Wrapper -->
+  <div class="main-container">
+  <!-- Logo at top left -->
+  <img src="logo-light-transparent.png" alt="RecoVibe Logo" class="site-logo" />
+  <!-- Admin button at top right -->
+  <a href="admin123.html" class="admin-btn" title="Admin Page">Admin</a>
+
+    <!-- Left Side: Welcome Text -->
+    <div class="welcome-text">
+      <h1>Welcome to Recovibe</h1>
+      <p>Welcome to Recovibe, your personalized event companion at PUP Biñan! This platform is designed to help you discover and engage with campus events that truly match your interests, goals, and schedule. Whether you're a student exploring new opportunities, a faculty member staying connected, or simply looking to get more involved, Recovibe uses smart recommendations to bring the right events to you. With features like personalized suggestions, easy event registration, and feedback tracking, your campus experience becomes more connected, meaningful, and enjoyable, all in one place.</p>
+    </div>
+
+    <!-- Right Side: Login Form -->
+    <div class="login-box">
+      <h2>WELCOME PUP-IANS!</h2>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="username">Email:</label>
+          <input type="email" id="username" name="username" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <div class="password-wrapper">
+            <input type="password" id="password" name="password" required />
+            <i id="togglePassword" class="fas fa-eye toggle-password"></i>
+          </div>
+        </div>
+        <button type="submit" id="loginBtn" class="login-button">Log In</button>
+      </form>
+      <div class="forgot">
+        <a href="Forget.html">Forgot Password?</a>
+      </div>
+      <form action="createacc.html" method="get">
+        <button type="submit" class="create-button">Create an Account</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Firebase Login Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyAhOFtWyDAR6Gip_JrZpRM9vWTpFdkwhyk",
+  authDomain: "reco-vibe2.firebaseapp.com",
+  projectId: "reco-vibe2",
+  storageBucket: "reco-vibe2.firebasestorage.app",
+  messagingSenderId: "877048494038",
+  appId: "1:877048494038:web:c325d8ec0ab46748a51677",
+  measurementId: "G-MXQ46E3WRD"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Check Realtime Database for user profile data and interests
+        const dbRef = ref(database);
+        let hasProfile = false;
+        let hasInterests = false;
+
+        try {
+          const dbSnapshot = await get(child(dbRef, `users/${user.uid}`));
+
+          if (dbSnapshot.exists()) {
+          const userData = dbSnapshot.val();
+
+          // Helper: check for profile fields (birthday, course, year, section, organization)
+          const profileKeys = ["birthday", "course", "year", "section", "organization"];
+
+          function hasAllProfileFields(obj) {
+            if (!obj || typeof obj !== 'object') return false;
+            return profileKeys.every(k => obj[k] !== undefined && obj[k] !== null && obj[k] !== "");
+          }
+
+          // If userData is flat and contains profile fields
+          if (hasAllProfileFields(userData)) {
+            hasProfile = true;
+          }
+
+          // Check for interests when stored as flat object
+          if (userData.interests && Array.isArray(userData.interests) && userData.interests.length > 0) {
+            hasInterests = true;
+          }
+
+          // If userData is nested (has keys inside from earlier push() usage), inspect children
+          if (!hasProfile || !hasInterests) {
+            for (const key in userData) {
+              const entry = userData[key];
+              if (!hasProfile && hasAllProfileFields(entry)) {
+                hasProfile = true;
+              }
+              if (!hasInterests && entry && entry.interests && Array.isArray(entry.interests) && entry.interests.length > 0) {
+                hasInterests = true;
+              }
+              if (hasProfile && hasInterests) break;
+            }
+          }
+        }
+        } catch (dbError) {
+          // Handle database permission denied or read errors
+          console.warn('Database read error (permission may be denied):', dbError);
+          // Allow user to proceed to profile setup on first login
+          hasProfile = false;
+          hasInterests = false;
+        }
+
+        // Show success message before redirecting
+        alert("Login successful! Redirecting...");
+
+        // Redirect after short delay (adds polish)
+        setTimeout(() => {
+          // If profile AND interests exist, go to ai.html
+          if (hasProfile && hasInterests) {
+            window.location.href = "ai.html";
+          } else if (!hasProfile) {
+            // If profile missing, go to 1st.html to complete profile
+            window.location.href = `1st.html?uid=${user.uid}`;
+          } else {
+            // Profile exists but interests missing -> go to 2nd.html
+            window.location.href = `2nd.html?uid=${user.uid}`;
+          }
+        }, 1000); // 1 second delay
+
+      } catch (error) {
+        // Improved error handling for wrong password and user not found
+        let message = "Login Failed: ";
+        if (error.code === "auth/wrong-password") {
+          message += "Incorrect password. Please try again.";
+        } else if (error.code === "auth/user-not-found") {
+          message += "No user found with this email.";
+        } else if (error.code === "auth/invalid-email") {
+          message += "Invalid email address.";
+        } else {
+          message += error.message;
+        }
+        alert(message);
+      }
+    });
+
+    // Password toggle
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    if (togglePassword && passwordInput) {
+      togglePassword.style.cursor = 'pointer';
+      togglePassword.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        togglePassword.classList.toggle('fa-eye');
+        togglePassword.classList.toggle('fa-eye-slash');
+      });
+    }
+
+  </script>
+
+</body>
+</html>
