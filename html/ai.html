@@ -336,10 +336,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('eventCardsContainer');
     container.innerHTML = '';
     try {
-      // Fetch all events from Firestore, ordered by date
-      const snapshot = await firebase.firestore().collection('events').orderBy('date', 'asc').get();
+      // Get current user
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        container.innerHTML = '<p>Please log in to see events.</p>';
+        return;
+      }
+
+      // Get user's organization from their profile
+      const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+      const userOrganization = userDoc.exists ? userDoc.data().organization : null;
+
+      // Fetch events from Firestore, ordered by date, filtered by organization
+      let query = firebase.firestore().collection('events');
+      if (userOrganization) {
+        query = query.where('organization', '==', userOrganization);
+      }
+      const snapshot = await query.orderBy('date', 'asc').get();
+      
       if (snapshot.empty) {
-        container.innerHTML = '<p>No events found.</p>';
+        container.innerHTML = '<p>No events found for your organization.</p>';
         return;
       }
       // Build a list of unique categories for the filter dropdown
